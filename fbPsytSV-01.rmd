@@ -1,0 +1,111 @@
+--- 
+title: \vspace{-1cm}"Psychotherapy Supervision Feedback"
+# author: "Halliwick PD Unit"
+date: "collated: `r format(Sys.time(), '%d %B, %Y @ %H:%M')`"
+output: pdf_document
+classoption: x11names, landscape
+geometry: margin = 0.1in
+header-includes:    
+    - \usepackage{longtable}
+    - \usepackage{booktabs}
+    - \usepackage{array}
+    - \usepackage{multirow}
+    - \usepackage{wrapfig}
+    - \usepackage{float}
+    - \usepackage{colortbl}
+    - \usepackage{pdflscape}
+    - \usepackage{tabu}
+    - \usepackage{threeparttable}
+    - \usepackage{lscape}
+    - \newcommand{\blandscape}{\begin{landscape}}
+    - \newcommand{\elandscape}{\end{landscape}}
+    - \usepackage{background}
+    - \backgroundsetup{
+      placement=top,
+      scale=1,
+      color=black,
+      opacity=0.3,
+      angle=0,
+      pages=1,
+      contents={\includegraphics[width=\paperwidth,height=\paperheight]{img/brain_transplants_grad.jpg}}
+      }     
+---
+
+\pagenumbering{gobble}
+
+```{r setupVariables, include=FALSE}
+### VARIABLES:
+### LIBRARIES:
+library(limer)
+library(properties)
+#library(ggthemr)
+library(ggthemes)
+library(cowplot)
+library(tikzDevice)
+library(kableExtra)
+# library(sqldf)
+library(knitr)
+library(lubridate)
+library(tidyverse)
+library(scales)
+library(xtable)
+### FUNCTIONS:
+fUniqVars <- function(x) {
+  # takes DF returns string vector of unique strings in DF
+  # unlist collapses list which then can be passed to unique
+  y <- unique(unlist(c(x)))
+  return(y)
+}
+### GET DATA:
+# read properties - aka parameters / variables
+props <- read.properties("fbPsytSV-01.properties")
+
+### Reading in data
+
+options(lime_api =str_trim(props$limeAPI))
+options(lime_username = str_trim(props$limeUser))
+options(lime_password = str_trim(props$limePassword))
+
+skey <- get_session_key()
+if(skey == '') { stop("No connection to database. Is network running OK?")}
+
+## Illustration of call_limer
+# svlist <- call_limer(method = "list_surveys")
+# call_limer(method = "get_summary", 
+#            params = list(iSurveyID = 784141,
+#                          sStatname = "completed_responses"))
+# usrs <- call_limer(method="list_users")
+
+initData <- get_responses(str_trim(props$limeSurveyNumber))
+invisible(release_session_key())
+### CLEAN DATA:
+# remove trailing dot from column names, normalize id column name (on windows 
+# due to charset oddities it is not simply called <id> but rather <?..id> )
+# and set date datatype on submitdate
+names(initData) <- gsub("\\.$", "", names(initData))
+# initData <- initData %>% rename(id = 1) 
+initData <- initData %>% mutate(submitdate = ymd_hms(submitdate))
+initData <- initData %>% mutate(date = as_date(submitdate))
+# initData <- initData %>% mutate(date = round_date(submitdate,"day"))
+initData <- initData %>% mutate(date = format(submitdate, '%d %b, %Y'))
+
+
+```
+
+```{r setupLibraries, code=readLines("libraries.R"), echo=F, warning=F, error=F, message=F}
+# principle of partitioning code in modules
+```
+
+```{r writeSV, echo=F, warning=F, error=F, message=F}
+df.text <- initData %>% select('learning.points' = Q001, 'improvement.suggestions' = Q003, date)
+
+```
+
+```{r tbl01_names, echo=F, results='asis'}
+
+options(xtable.booktabs = TRUE)
+xt.text <- xtable(df.text)
+align(xt.text) <- "lp{15cm}p{8cm}p{2cm}" #c('l','p{5.2in}')
+print(xt.text, include.rownames=TRUE, tabular.environment="longtable", floating=FALSE, comment=FALSE)
+
+```
